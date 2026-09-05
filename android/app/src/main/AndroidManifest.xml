@@ -22,6 +22,29 @@
     <!-- Pod przyszłą synchronizację z Supabase oraz pobieranie aktualizacji. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Powiadomienia z przypomnieniami. Od Androida 13 wymagają zgody,
+         o którą aplikacja prosi przy pierwszym włączeniu przypomnienia. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Przeplanowanie przypomnień po restarcie telefonu.
+         Android kasuje wszystkie zaplanowane alarmy przy ponownym
+         uruchomieniu — bez tego przypomnienia po cichu przestałyby
+         przychodzić po pierwszym restarcie. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Nagrywanie głosu do dziennika umiejętności.
+         Zgody prosi sama biblioteka `record` w momencie pierwszego
+         nagrania, więc nie ma tu osobnego pakietu do uprawnień. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Robienie zdjęć i wideo bezpośrednio z poziomu wpisu.
+         Wybieranie z galerii od Androida 13 idzie przez systemowy
+         selektor zdjęć i nie wymaga żadnego uprawnienia. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
     <!-- Instalowanie aktualizacji pobranych spoza sklepu.
          Zgody i tak udziela użytkownik osobno („Instalowanie nieznanych
          aplikacji"), a systemowy ekran instalatora pojawia się zawsze —
@@ -54,6 +77,19 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Odbiornik przywracający zaplanowane przypomnienia po restarcie
+             telefonu i po aktualizacji aplikacji. Dostarczany przez
+             flutter_local_notifications. -->
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
         <!-- Udostępnia pobrany plik APK systemowemu instalatorowi.
              Od Androida 7 nie wolno przekazać innej aplikacji adresu
              `file://` — musi to być `content://` wystawione przez

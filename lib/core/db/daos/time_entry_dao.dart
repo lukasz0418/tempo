@@ -56,6 +56,11 @@ class TimeEntryDao extends DatabaseAccessor<AppDatabase>
     required String deviceId,
     String? taskId,
     String? categoryId,
+
+    /// Ćwiczona umiejętność. Dzięki temu godziny ćwiczeń liczą się same
+    /// z tego samego pomiaru, który obsługuje resztę aplikacji —
+    /// sesja gry na gitarze nie potrzebuje osobnego stopera.
+    String? skillId,
     String description = '',
     TimeEntrySource source = TimeEntrySource.timer,
   }) async {
@@ -71,6 +76,7 @@ class TimeEntryDao extends DatabaseAccessor<AppDatabase>
         updatedAt: now,
         taskId: Value(taskId),
         categoryId: Value(categoryId),
+        skillId: Value(skillId),
         description: Value(description),
         source: Value(source),
         deviceId: Value(deviceId),

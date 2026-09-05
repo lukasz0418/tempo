@@ -2,15 +2,22 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/db/daos/app_usage_dao.dart';
+import '../core/db/daos/goal_dao.dart';
 import '../core/db/daos/idea_dao.dart';
 import '../core/db/daos/insight_dao.dart';
+import '../core/db/daos/journal_dao.dart';
+import '../core/db/daos/reminder_dao.dart';
 import '../core/db/daos/rule_dao.dart';
 import '../core/db/daos/settings_dao.dart';
+import '../core/db/daos/skill_dao.dart';
 import '../core/db/daos/task_dao.dart';
 import '../core/db/daos/time_entry_dao.dart';
 import '../core/db/database.dart';
 import '../core/db/enums.dart';
 import '../core/estimation/estimation.dart';
+import '../core/media/media_capture.dart';
+import '../core/media/media_store.dart';
+import '../core/notifications/notification_service.dart';
 import '../core/review/day_review.dart';
 import '../core/tracking/tracking_service.dart';
 import '../core/update/update_service.dart';
@@ -211,6 +218,103 @@ final dayVerdictProvider = FutureProvider<DayVerdict>((ref) async {
 final dayPlanProvider = FutureProvider<DayPlan?>((ref) async {
   final day = ref.watch(selectedDayProvider);
   return ref.watch(insightDaoProvider).dayPlan(dayKey(day));
+});
+
+// --- umiejętności i dziennik -------------------------------------------
+
+final skillDaoProvider =
+    Provider<SkillDao>((ref) => ref.watch(databaseProvider).skillDao);
+final journalDaoProvider =
+    Provider<JournalDao>((ref) => ref.watch(databaseProvider).journalDao);
+
+final skillsProvider = StreamProvider<List<Skill>>((ref) {
+  return ref.watch(skillDaoProvider).watchActive();
+});
+
+final allSkillsProvider = StreamProvider<List<Skill>>((ref) {
+  return ref.watch(skillDaoProvider).watchAll();
+});
+
+/// Postęp w umiejętności.
+///
+/// Zależy od strumienia wpisów dziennika i od wpisów czasu, więc przelicza
+/// się sam po zamknięciu sesji — bez tego statystyki stoją, dopóki
+/// nie przełączysz ekranu.
+final skillProgressProvider =
+    FutureProvider.family<SkillProgress, String>((ref, skillId) async {
+  ref.watch(journalEntriesProvider(skillId));
+  ref.watch(runningEntryProvider);
+  return ref.watch(skillDaoProvider).progress(skillId);
+});
+
+final journalEntriesProvider =
+    StreamProvider.family<List<JournalEntry>, String>((ref, skillId) {
+  return ref.watch(journalDaoProvider).watchForSkill(skillId);
+});
+
+final journalPageProvider =
+    StreamProvider.family<JournalPage?, String>((ref, entryId) {
+  return ref.watch(journalDaoProvider).watchPage(entryId);
+});
+
+final attachmentsProvider =
+    StreamProvider.family<List<Attachment>, String>((ref, entryId) {
+  return ref.watch(journalDaoProvider).watchAttachments(entryId);
+});
+
+// --- cele ----------------------------------------------------------------
+
+final goalDaoProvider =
+    Provider<GoalDao>((ref) => ref.watch(databaseProvider).goalDao);
+
+final skillGoalsProvider =
+    StreamProvider.family<List<Goal>, String>((ref, skillId) {
+  return ref.watch(goalDaoProvider).watchForSkill(skillId);
+});
+
+final activeGoalsProvider = StreamProvider<List<Goal>>((ref) {
+  return ref.watch(goalDaoProvider).watchActive();
+});
+
+/// Postęp celu. Zależy od trwającego pomiaru, więc odświeża się sam
+/// po zatrzymaniu stopera.
+final goalProgressProvider =
+    FutureProvider.family<GoalProgress, String>((ref, goalId) async {
+  ref.watch(runningEntryProvider);
+  final dao = ref.watch(goalDaoProvider);
+  final goal = await dao.byId(goalId);
+  if (goal == null) {
+    return const GoalProgress(
+      current: 0,
+      target: 1,
+      metric: GoalMetric.custom,
+    );
+  }
+  return dao.progress(goal);
+});
+
+// --- przypomnienia -------------------------------------------------------
+
+final reminderDaoProvider =
+    Provider<ReminderDao>((ref) => ref.watch(databaseProvider).reminderDao);
+
+final remindersProvider = StreamProvider<List<Reminder>>((ref) {
+  return ref.watch(reminderDaoProvider).watchAll();
+});
+
+final notificationServiceProvider = Provider<NotificationService>((ref) {
+  return NotificationService(ref.watch(databaseProvider));
+});
+
+final mediaStoreProvider = FutureProvider<MediaStore>((ref) {
+  return MediaStore.instance();
+});
+
+final mediaCaptureProvider = FutureProvider<MediaCapture>((ref) async {
+  final store = await ref.watch(mediaStoreProvider.future);
+  final capture = MediaCapture(store);
+  ref.onDispose(capture.dispose);
+  return capture;
 });
 
 final updateServiceProvider = Provider<UpdateService>((ref) {

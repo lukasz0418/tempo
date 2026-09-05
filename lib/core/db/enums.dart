@@ -102,3 +102,76 @@ enum MatchType { equals, contains, startsWith, regex }
 /// Platforma urządzenia — reguły bywają platformowe
 /// (`chrome.exe` kontra `com.android.chrome`).
 enum DevicePlatform { windows, android, unknown }
+
+/// Horyzont celu.
+///
+/// Rozdzielenie na dwa poziomy jest tu istotne, a nie kosmetyczne: cel
+/// długoterminowy nadaje kierunek, ale nie da się go „zrobić w środę".
+/// Dopiero rozbicie go na cele krótkoterminowe daje coś, co da się
+/// zaplanować na najbliższy tydzień.
+enum GoalHorizon {
+  /// Tygodnie, najwyżej miesiąc.
+  short,
+
+  /// Miesiące albo rok.
+  long,
+}
+
+/// Czym mierzymy postęp w celu.
+///
+/// Pierwsze trzy liczą się **automatycznie** z danych, które aplikacja
+/// i tak zbiera — to one sprawiają, że cel nie wymaga pamiętania
+/// o odhaczaniu i dlatego w ogóle przeżywa dłużej niż dwa tygodnie.
+enum GoalMetric {
+  /// Przećwiczony czas w minutach. Liczony z wpisów czasu.
+  minutes,
+
+  /// Liczba sesji. Liczona z wpisów czasu.
+  sessions,
+
+  /// Dni z rzędu. Liczone z dni, w których cokolwiek robiłeś.
+  streakDays,
+
+  /// Liczba dni ćwiczonych w oknie celu — dla nawyków typu „3× w tygodniu".
+  practiceDays,
+
+  /// Osiągnięcie zero-jedynkowe: „zaśpiewać cały utwór czysto".
+  /// Nie da się go policzyć — odhaczasz ręcznie.
+  milestone,
+
+  /// Własny licznik, podbijany ręcznie („nauczyć się 12 utworów").
+  custom,
+}
+
+enum GoalStatus { active, achieved, abandoned }
+
+/// Rodzaj załącznika do wpisu w dzienniku.
+enum AttachmentKind {
+  /// Nagranie głosowe zrobione w aplikacji. Przy nauce śpiewu czy gry
+  /// to jedyny artefakt, który naprawdę pokazuje postęp — notatka
+  /// nie odtworzy tego, jak brzmiałeś trzy miesiące temu.
+  audio,
+
+  photo,
+  video,
+
+  /// Cokolwiek innego: PDF z nutami, plik projektu.
+  file,
+}
+
+/// Jak radzi sobie plik załącznika poza urządzeniem, na którym powstał.
+enum AttachmentSyncState {
+  /// Jest tylko lokalnie.
+  localOnly,
+
+  /// Wysłany do magazynu zdalnego.
+  uploaded,
+
+  /// Wiersz przyszedł z synchronizacji, ale pliku jeszcze nie pobrano.
+  ///
+  /// Metadane załącznika synchronizują się razem z resztą bazy, a same
+  /// pliki są duże i lecą osobno — dzięki temu otwarcie wpisu na drugim
+  /// urządzeniu pokazuje od razu, że nagranie istnieje, zamiast udawać,
+  /// że wpis jest pusty.
+  remoteOnly,
+}

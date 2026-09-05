@@ -298,6 +298,143 @@ class HourHeatmap extends StatelessWidget {
   }
 }
 
+/// Trend jednej wartości w czasie — samoocena sesji po sesji.
+///
+/// Pojedyncza seria, więc **bez legendy**: tytuł nad wykresem mówi, co jest
+/// rysowane, a ramka z jednym kolorem tylko powtarzałaby tę informację.
+/// Etykietowana jest wyłącznie ostatnia wartość — liczba przy każdym punkcie
+/// zamienia wykres w tabelę i przestaje być czytana.
+class RatingTrend extends StatelessWidget {
+  const RatingTrend({
+    required this.values,
+    required this.color,
+    this.min = 1,
+    this.max = 5,
+    super.key,
+  });
+
+  final List<int> values;
+  final Color color;
+  final int min;
+  final int max;
+
+  @override
+  Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+
+    // Dwa punkty to jeszcze nie trend. Poniżej tego progu wykres
+    // sugerowałby kierunek, którego w danych nie ma.
+    if (values.length < 3) {
+      return Text(
+        'Za mało ocen na trend (${values.length}/3).',
+        style: TextStyle(fontSize: 12, color: VizColors.inkMuted),
+      );
+    }
+
+    return SizedBox(
+      height: 64,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: CustomPaint(
+              painter: _SparklinePainter(
+                values: values,
+                color: color,
+                gridColor: VizColors.grid(brightness),
+                min: min,
+                max: max,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Center(
+            child: Text(
+              '${values.last}',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: VizColors.ink(brightness),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SparklinePainter extends CustomPainter {
+  _SparklinePainter({
+    required this.values,
+    required this.color,
+    required this.gridColor,
+    required this.min,
+    required this.max,
+  });
+
+  final List<int> values;
+  final Color color;
+  final Color gridColor;
+  final int min;
+  final int max;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final range = (max - min).clamp(1, 1000);
+
+    // Linia bazowa w połowie skali — pozwala od razu zobaczyć,
+    // czy oceny są powyżej, czy poniżej środka.
+    final baseline = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1;
+    canvas.drawLine(
+      Offset(0, size.height / 2),
+      Offset(size.width, size.height / 2),
+      baseline,
+    );
+
+    final path = Path();
+    final step = values.length == 1 ? 0.0 : size.width / (values.length - 1);
+
+    for (var i = 0; i < values.length; i++) {
+      final normalized = (values[i] - min) / range;
+      final x = step * i;
+      final y = size.height - normalized * size.height;
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        // 2 px, zaokrąglone łączenia — zgodnie ze specyfikacją znaczników.
+        ..strokeWidth = 2
+        ..strokeJoin = StrokeJoin.round
+        ..strokeCap = StrokeCap.round,
+    );
+
+    // Kropka na ostatnim punkcie z obwódką w kolorze tła, żeby była
+    // czytelna także tam, gdzie linia ją przecina.
+    final lastNormalized = (values.last - min) / range;
+    final lastPoint = Offset(
+      size.width,
+      size.height - lastNormalized * size.height,
+    );
+    canvas.drawCircle(lastPoint, 6, Paint()..color = gridColor);
+    canvas.drawCircle(lastPoint, 4, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_SparklinePainter old) =>
+      old.values != values || old.color != color;
+}
+
 /// Ranking poziomy: aplikacje albo kategorie posortowane wg czasu.
 ///
 /// Kolor niesie wielkość (rampa sekwencyjna), a nie tożsamość — przy liście

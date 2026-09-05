@@ -3,10 +3,14 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'daos/app_usage_dao.dart';
+import 'daos/goal_dao.dart';
 import 'daos/idea_dao.dart';
 import 'daos/insight_dao.dart';
+import 'daos/journal_dao.dart';
+import 'daos/reminder_dao.dart';
 import 'daos/rule_dao.dart';
 import 'daos/settings_dao.dart';
+import 'daos/skill_dao.dart';
 import 'daos/task_dao.dart';
 import 'daos/time_entry_dao.dart';
 // Wygenerowany `database.g.dart` jest częścią tego pliku i odwołuje się
@@ -29,6 +33,11 @@ part 'database.g.dart';
     DayPlans,
     Devices,
     LocalSettings,
+    Skills,
+    JournalEntries,
+    Attachments,
+    Goals,
+    Reminders,
   ],
   daos: [
     TaskDao,
@@ -38,6 +47,10 @@ part 'database.g.dart';
     IdeaDao,
     InsightDao,
     SettingsDao,
+    SkillDao,
+    JournalDao,
+    GoalDao,
+    ReminderDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -47,13 +60,33 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async {
           await m.createAll();
           await seedDatabase(this);
+        },
+
+        // Migracje muszą być addytywne i idempotentne w skutkach.
+        // Na telefonie leżą już dane, których nie da się odtworzyć —
+        // pomiar czasu i wpisy z poprzednich dni — więc żaden krok
+        // nie może kasować ani przepisywać istniejących tabel.
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.createTable(skills);
+            await m.createTable(journalEntries);
+            await m.createTable(attachments);
+            // Kolumna dopisywana do istniejącej tabeli: dotychczasowe
+            // wpisy czasu dostają NULL, czyli „bez umiejętności",
+            // co jest poprawnym stanem, a nie brakiem danych.
+            await m.addColumn(timeEntries, timeEntries.skillId);
+          }
+          if (from < 3) {
+            await m.createTable(goals);
+            await m.createTable(reminders);
+          }
         },
         beforeOpen: (details) async {
           // Klucze obce są w SQLite domyślnie wyłączone i trzeba je włączać

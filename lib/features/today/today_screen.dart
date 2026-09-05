@@ -180,7 +180,12 @@ class _TimerCardState extends ConsumerState<_TimerCard> {
     _descriptionController.clear();
   }
 
-  Future<void> _stop() => ref.read(timeEntryDaoProvider).stop();
+  Future<void> _stop() async {
+    await ref.read(timeEntryDaoProvider).stop();
+    // Zatrzymanie stopera to moment, w którym cel oparty o czas
+    // albo liczbę sesji mógł właśnie zostać osiągnięty.
+    await ref.read(goalDaoProvider).refreshAchievements();
+  }
 
   Future<void> _fixLongEntry(TimeEntry entry) async {
     final minutes = await showDialog<int>(

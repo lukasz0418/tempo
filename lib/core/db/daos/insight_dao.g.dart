@@ -6,6 +6,7 @@ part of 'insight_dao.dart';
 mixin _$InsightDaoMixin on DatabaseAccessor<AppDatabase> {
   $CategoriesTable get categories => attachedDatabase.categories;
   $TasksTable get tasks => attachedDatabase.tasks;
+  $SkillsTable get skills => attachedDatabase.skills;
   $TimeEntriesTable get timeEntries => attachedDatabase.timeEntries;
   $AppUsagesTable get appUsages => attachedDatabase.appUsages;
   $DayPlansTable get dayPlans => attachedDatabase.dayPlans;
@@ -19,6 +20,8 @@ class InsightDaoManager {
       $$CategoriesTableTableManager(_db.attachedDatabase, _db.categories);
   $$TasksTableTableManager get tasks =>
       $$TasksTableTableManager(_db.attachedDatabase, _db.tasks);
+  $$SkillsTableTableManager get skills =>
+      $$SkillsTableTableManager(_db.attachedDatabase, _db.skills);
   $$TimeEntriesTableTableManager get timeEntries =>
       $$TimeEntriesTableTableManager(_db.attachedDatabase, _db.timeEntries);
   $$AppUsagesTableTableManager get appUsages =>

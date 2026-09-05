@@ -8,6 +8,7 @@ import '../../app/theme.dart';
 import '../../core/db/daos/settings_dao.dart';
 import '../../core/tracking/android_usage.dart';
 import '../../core/update/update_service.dart';
+import '../reminders/reminders_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -17,12 +18,41 @@ class SettingsScreen extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: const [
+        _RemindersCard(),
+        SizedBox(height: 16),
         _UpdateCard(),
         SizedBox(height: 16),
         _TrackingCard(),
         SizedBox(height: 16),
         _AboutCard(),
       ],
+    );
+  }
+}
+
+class _RemindersCard extends ConsumerWidget {
+  const _RemindersCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reminders = ref.watch(remindersProvider).value ?? const [];
+    final active = reminders.where((r) => r.enabled).length;
+
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.alarm),
+        title: const Text('Przypomnienia'),
+        subtitle: Text(
+          active == 0
+              ? 'Brak włączonych'
+              : '$active włączone',
+          style: TextStyle(fontSize: 12, color: VizColors.inkMuted),
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const RemindersScreen()),
+        ),
+      ),
     );
   }
 }
