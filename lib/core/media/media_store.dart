@@ -267,6 +267,7 @@ class MediaStore {
       '.webp' => 'image/webp',
       '.heic' => 'image/heic',
       '.m4a' || '.aac' => 'audio/mp4',
+      '.flac' => 'audio/flac',
       '.mp3' => 'audio/mpeg',
       '.wav' => 'audio/wav',
       '.ogg' || '.opus' => 'audio/ogg',

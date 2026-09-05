@@ -1,7 +1,7 @@
 import 'dart:io';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
 
 import '../../app/theme.dart';
 import '../../core/db/database.dart';
@@ -51,6 +51,11 @@ class AttachmentTile extends StatelessWidget {
 ///
 /// Przy nauce śpiewu czy gry to najważniejszy typ załącznika — jedyny,
 /// który po pół roku pokaże różnicę, jakiej notatka nie odda.
+///
+/// Świadomie na `audioplayers`, a nie `just_audio`: ten drugi nie ma
+/// implementacji dla Windowsa, więc nagranie zrobione na komputerze
+/// dałoby się zapisać, ale nie odsłuchać — na tej samej maszynie,
+/// na której powstało.
 class _AudioTile extends StatefulWidget {
   const _AudioTile({
     required this.attachment,
@@ -69,6 +74,10 @@ class _AudioTile extends StatefulWidget {
 class _AudioTileState extends State<_AudioTile> {
   AudioPlayer? _player;
   bool _loading = false;
+  bool _playing = false;
+  Duration _position = Duration.zero;
+  Duration? _duration;
+  String? _error;
 
   @override
   void dispose() {
@@ -76,26 +85,50 @@ class _AudioTileState extends State<_AudioTile> {
     super.dispose();
   }
 
-  Future<AudioPlayer> _ensurePlayer() async {
+  /// Odtwarzacz tworzony dopiero przy pierwszym kliknięciu.
+  ///
+  /// Wpis z kilkoma nagraniami otwierałby inaczej tyle samo strumieni
+  /// audio naraz, zanim ktokolwiek nacisnąłby „graj".
+  Future<AudioPlayer?> _ensurePlayer() async {
     final existing = _player;
     if (existing != null) return existing;
 
-    final player = AudioPlayer();
-    await player.setFilePath(widget.file.path);
-    // Po dojściu do końca wracamy na początek i zatrzymujemy, żeby
-    // kolejne kliknięcie odtwarzało od nowa, a nie stało w miejscu.
-    player.playerStateStream.listen((state) {
-      if (state.processingState == ProcessingState.completed) {
-        player.seek(Duration.zero);
-        player.pause();
+    try {
+      final player = AudioPlayer();
+      await player.setSourceDeviceFile(widget.file.path);
+
+      player.onPlayerStateChanged.listen((state) {
+        if (mounted) setState(() => _playing = state == PlayerState.playing);
+      });
+      player.onPositionChanged.listen((p) {
+        if (mounted) setState(() => _position = p);
+      });
+      player.onDurationChanged.listen((d) {
+        if (mounted) setState(() => _duration = d);
+      });
+      // Po dojściu do końca wracamy na początek, żeby kolejne kliknięcie
+      // odtwarzało od nowa, a nie stało w miejscu.
+      player.onPlayerComplete.listen((_) async {
+        await player.seek(Duration.zero);
+        if (mounted) setState(() => _position = Duration.zero);
+      });
+
+      _duration = await player.getDuration();
+      return _player = player;
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'Nie udało się otworzyć nagrania.');
       }
-    });
-    return _player = player;
+      return null;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final player = _player;
+    final total = _duration ??
+        (widget.attachment.durationMs == null
+            ? null
+            : Duration(milliseconds: widget.attachment.durationMs!));
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -103,22 +136,16 @@ class _AudioTileState extends State<_AudioTile> {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Row(
           children: [
-            StreamBuilder<PlayerState>(
-              stream: player?.playerStateStream,
-              builder: (context, snapshot) {
-                final playing = snapshot.data?.playing ?? false;
-                return IconButton(
-                  icon: _loading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Icon(playing ? Icons.pause_circle : Icons.play_circle),
-                  iconSize: 36,
-                  onPressed: _toggle,
-                );
-              },
+            IconButton(
+              icon: _loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(_playing ? Icons.pause_circle : Icons.play_circle),
+              iconSize: 36,
+              onPressed: _error == null ? _toggle : null,
             ),
             Expanded(
               child: Column(
@@ -131,24 +158,18 @@ class _AudioTileState extends State<_AudioTile> {
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 2),
-                  StreamBuilder<Duration>(
-                    stream: player?.positionStream,
-                    builder: (context, snapshot) {
-                      final position = snapshot.data ?? Duration.zero;
-                      final total = player?.duration ??
-                          (widget.attachment.durationMs == null
-                              ? null
-                              : Duration(
-                                  milliseconds: widget.attachment.durationMs!));
-                      return Text(
-                        total == null
-                            ? _mmss(position)
-                            : '${_mmss(position)} / ${_mmss(total)}'
-                                '  ·  ${formatBytes(widget.attachment.bytes)}',
-                        style:
-                            TextStyle(fontSize: 12, color: VizColors.inkMuted),
-                      );
-                    },
+                  Text(
+                    _error ??
+                        (total == null
+                            ? _mmss(_position)
+                            : '${_mmss(_position)} / ${_mmss(total)}'
+                                '  ·  ${formatBytes(widget.attachment.bytes)}'),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _error == null
+                          ? VizColors.inkMuted
+                          : const Color(0xFFD03B3B),
+                    ),
                   ),
                 ],
               ),
@@ -167,10 +188,12 @@ class _AudioTileState extends State<_AudioTile> {
     setState(() => _loading = true);
     try {
       final player = await _ensurePlayer();
-      if (player.playing) {
+      if (player == null) return;
+
+      if (_playing) {
         await player.pause();
       } else {
-        await player.play();
+        await player.resume();
       }
     } finally {
       if (mounted) setState(() => _loading = false);

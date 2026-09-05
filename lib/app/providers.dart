@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:record/record.dart' show InputDevice;
 
 import '../core/db/daos/app_usage_dao.dart';
 import '../core/db/daos/goal_dao.dart';
@@ -325,12 +326,52 @@ final audioQualityProvider = StreamProvider<AudioQuality>((ref) {
           ));
 });
 
+/// Identyfikator wybranego mikrofonu; pusty ciąg = domyślny systemowy.
+final audioInputDeviceIdProvider = StreamProvider<String?>((ref) {
+  return ref.watch(settingsDaoProvider).watch(SettingKeys.audioInputDeviceId);
+});
+
 final mediaCaptureProvider = FutureProvider<MediaCapture>((ref) async {
   final store = await ref.watch(mediaStoreProvider.future);
   final capture = MediaCapture(store)
     ..quality = ref.watch(audioQualityProvider).value ?? AudioQuality.practice;
+
+  final deviceId = ref.watch(audioInputDeviceIdProvider).value;
+  if (deviceId != null && deviceId.isNotEmpty) {
+    // Urządzenie mogło zniknąć od czasu wyboru — odpięty mikrofon USB
+    // nie może wywalić nagrywania, więc po prostu wracamy do domyślnego.
+    final devices = await capture.inputDevices();
+    capture.inputDevice =
+        devices.where((d) => d.id == deviceId).firstOrNull;
+  }
+
   ref.onDispose(capture.dispose);
   return capture;
+});
+
+/// Mikrofony widoczne dla systemu.
+final inputDevicesProvider = FutureProvider<List<InputDevice>>((ref) async {
+  final store = await ref.watch(mediaStoreProvider.future);
+  return MediaCapture(store).inputDevices();
+});
+
+/// Poziomy jakości, które ta platforma faktycznie obsługuje.
+///
+/// Sprawdzane w systemie, nie zakładane: dostępność FLAC zależy od wersji
+/// Androida i od kodeków Media Foundation na Windowsie. Ustawienia pokazują
+/// tylko to, co zadziała.
+final supportedQualitiesProvider =
+    FutureProvider<List<AudioQuality>>((ref) async {
+  final store = await ref.watch(mediaStoreProvider.future);
+  final capture = MediaCapture(store);
+
+  final out = <AudioQuality>[];
+  for (final q in AudioQuality.values) {
+    if (await capture.supports(q)) out.add(q);
+  }
+  // Gdyby system nie potwierdził niczego, pokazujemy pełną listę zamiast
+  // pustego ekranu — lepiej pozwolić spróbować niż zablokować nagrywanie.
+  return out.isEmpty ? AudioQuality.values : out;
 });
 
 final updateServiceProvider = Provider<UpdateService>((ref) {

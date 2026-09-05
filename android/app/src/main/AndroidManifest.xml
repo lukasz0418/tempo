@@ -77,11 +77,17 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <!-- Odbiornik przywracający zaplanowane przypomnienia po restarcie
-             telefonu i po aktualizacji aplikacji. Dostarczany przez
-             flutter_local_notifications. -->
+        <!-- Wyświetla powiadomienie w momencie zadziałania alarmu. -->
         <receiver
-            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
+            android:name=".ReminderReceiver"
+            android:exported="false" />
+
+        <!-- Odtwarza zaplanowane przypomnienia po restarcie telefonu
+             i po aktualizacji aplikacji. Android kasuje w obu tych
+             sytuacjach wszystkie alarmy — bez tego odbiornika
+             przypomnienia po cichu przestałyby przychodzić. -->
+        <receiver
+            android:name=".ReminderBootReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

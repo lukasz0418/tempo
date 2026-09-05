@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/ideas/ideas_screen.dart';
@@ -21,6 +22,20 @@ class TempoApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
+
+      // Bez tego systemowe widgety — wybór godziny i daty — lecą po
+      // angielsku i w formacie 12-godzinnym, w aplikacji napisanej
+      // w całości po polsku. Locale wymuszony, a nie wzięty z systemu:
+      // aplikacja nie ma innych tłumaczeń, więc podążanie za ustawieniem
+      // telefonu dałoby tylko niespójną mieszankę.
+      locale: const Locale('pl'),
+      supportedLocales: const [Locale('pl')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+
       home: const _Shell(),
     );
   }

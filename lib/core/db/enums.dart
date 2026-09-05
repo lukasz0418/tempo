@@ -123,32 +123,58 @@ enum AudioQuality {
 
   /// 192 kbps stereo — gdy nagrywasz instrument albo pomieszczenie.
   /// ~1,4 MB na minutę.
-  high;
+  high,
 
+  /// FLAC stereo, bezstratnie. ~5 MB na minutę.
+  ///
+  /// Ma sens przy porządnym mikrofonie i wtedy, gdy nagranie ma być
+  /// materiałem źródłowym, a nie tylko odsłuchem: bez strat da się je
+  /// później obrobić albo przekodować bez kumulowania artefaktów.
+  /// Do samego porównywania „jak brzmiałem pół roku temu" [high]
+  /// jest praktycznie nieodróżnialne.
+  lossless;
+
+  /// Bitrate w bitach na sekundę. Dla [lossless] tylko orientacyjny —
+  /// FLAC nie ma stałej przepływności, a rzeczywisty rozmiar zależy
+  /// od materiału.
   int get bitRate => switch (this) {
         AudioQuality.note => 64000,
         AudioQuality.practice => 128000,
         AudioQuality.high => 192000,
+        AudioQuality.lossless => 700000,
       };
 
-  int get channels => this == AudioQuality.high ? 2 : 1;
+  int get channels => switch (this) {
+        AudioQuality.note || AudioQuality.practice => 1,
+        AudioQuality.high || AudioQuality.lossless => 2,
+      };
+
+  bool get isLossless => this == AudioQuality.lossless;
+
+  /// Rozszerzenie pliku wynikające z użytego kodeka.
+  String get fileExtension => isLossless ? '.flac' : '.m4a';
 
   String get label => switch (this) {
         AudioQuality.note => 'Notatka głosowa',
         AudioQuality.practice => 'Ćwiczenie',
         AudioQuality.high => 'Wysoka',
+        AudioQuality.lossless => 'Bezstratna',
       };
 
   String get description => switch (this) {
         AudioQuality.note => '64 kbps mono — do mówionych notatek',
         AudioQuality.practice => '128 kbps mono — do śpiewu i gry',
         AudioQuality.high => '192 kbps stereo — instrument, pomieszczenie',
+        AudioQuality.lossless => 'FLAC stereo — materiał źródłowy, bez strat',
       };
 
   /// Przybliżony rozmiar minuty nagrania.
   String get sizePerMinute {
     final bytes = bitRate * 60 / 8;
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB/min';
+    final mb = bytes / (1024 * 1024);
+    return isLossless
+        ? '~${mb.toStringAsFixed(0)} MB/min'
+        : '${mb.toStringAsFixed(1)} MB/min';
   }
 }
 

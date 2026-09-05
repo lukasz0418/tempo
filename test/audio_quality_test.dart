@@ -31,6 +31,23 @@ void main() {
       expect(AudioQuality.high.sizePerMinute, '1.4 MB/min');
     });
 
+    test('bezstratna jest oznaczona i ma inne rozszerzenie', () {
+      // Rozszerzenie musi iść za kodekiem, bo po nim aplikacja rozpoznaje
+      // typ MIME — plik FLAC z nazwą .m4a nie odtworzyłby się nigdzie.
+      expect(AudioQuality.lossless.isLossless, isTrue);
+      expect(AudioQuality.lossless.fileExtension, '.flac');
+
+      for (final q in AudioQuality.values.where((q) => !q.isLossless)) {
+        expect(q.fileExtension, '.m4a', reason: q.name);
+      }
+    });
+
+    test('rozmiar bezstratnej podany orientacyjnie', () {
+      // FLAC nie ma stałej przepływności, więc liczba jest szacunkiem —
+      // tylda w tekście mówi o tym wprost, zamiast udawać precyzję.
+      expect(AudioQuality.lossless.sizePerMinute, startsWith('~'));
+    });
+
     test('każda jakość ma opis i etykietę', () {
       for (final q in AudioQuality.values) {
         expect(q.label, isNotEmpty);

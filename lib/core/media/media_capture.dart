@@ -36,6 +36,13 @@ class MediaCapture {
   /// Jakość kolejnych nagrań. Ustawiana z ekranu ustawień.
   AudioQuality quality = AudioQuality.practice;
 
+  /// Wybrany mikrofon. Null = domyślny systemowy.
+  ///
+  /// Ma znaczenie głównie na komputerze: bez tego nagranie leci
+  /// z mikrofonu wbudowanego w laptopa nawet wtedy, gdy do portu USB
+  /// podpięty jest porządny mikrofon. Żaden bitrate tego nie nadrobi.
+  InputDevice? inputDevice;
+
   /// Parametry nagrania dla bieżącej jakości.
   ///
   /// Częstotliwość próbkowania zostaje 44,1 kHz niezależnie od ustawienia:
@@ -44,11 +51,42 @@ class MediaCapture {
   /// pół roku a dzisiejszym. Oszczędność miejsca idzie przez bitrate,
   /// nie przez pasmo.
   RecordConfig get _audioConfig => RecordConfig(
-        encoder: AudioEncoder.aacLc,
+        encoder: quality.isLossless ? AudioEncoder.flac : AudioEncoder.aacLc,
         bitRate: quality.bitRate,
         sampleRate: 44100,
         numChannels: quality.channels,
+        device: inputDevice,
       );
+
+  /// Mikrofony widoczne dla systemu.
+  Future<List<InputDevice>> inputDevices() async {
+    final recorder = AudioRecorder();
+    try {
+      return await recorder.listInputDevices();
+    } on Exception {
+      return const [];
+    } finally {
+      await recorder.dispose();
+    }
+  }
+
+  /// Czy dana jakość jest w ogóle osiągalna na tej platformie.
+  ///
+  /// Pytamy system zamiast zakładać: dostępność kodeków zależy od wersji
+  /// Androida i od tego, co Media Foundation ma zainstalowane na Windowsie.
+  /// Ekran ustawień pokazuje tylko to, co faktycznie zadziała.
+  Future<bool> supports(AudioQuality candidate) async {
+    final recorder = AudioRecorder();
+    try {
+      return await recorder.isEncoderSupported(
+        candidate.isLossless ? AudioEncoder.flac : AudioEncoder.aacLc,
+      );
+    } on Exception {
+      return false;
+    } finally {
+      await recorder.dispose();
+    }
+  }
 
   bool get isRecording => _recorder != null;
 
@@ -79,7 +117,7 @@ class MediaCapture {
     // tymczasowego. Dzięki temu przerwanie aplikacji w trakcie zostawia
     // plik w miejscu, z którego da się go odzyskać, zamiast w katalogu,
     // który system czyści bez ostrzeżenia.
-    final target = await _store.scratchFile('.m4a');
+    final target = await _store.scratchFile(quality.fileExtension);
     await recorder.start(_audioConfig, path: target.path);
     _recorder = recorder;
     return true;

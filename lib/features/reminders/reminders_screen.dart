@@ -74,8 +74,10 @@ class RemindersScreen extends ConsumerWidget {
     // Zgoda na powiadomienia (Android 13+) przed dodaniem czegokolwiek —
     // przypomnienie zapisane bez zgody wyglądałoby na działające,
     // a nigdy by się nie pokazało.
-    final granted =
-        await ref.read(notificationServiceProvider).requestPermission();
+    final service = ref.read(notificationServiceProvider);
+    final granted = await service.hasPermission()
+        ? true
+        : await service.requestPermission();
 
     if (!context.mounted) return;
     if (!granted) {

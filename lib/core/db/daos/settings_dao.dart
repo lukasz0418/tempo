@@ -25,6 +25,13 @@ abstract final class SettingKeys {
 
   /// Jakość nagrań głosowych, jako nazwa wartości [AudioQuality].
   static const audioQuality = 'audio_quality';
+
+  /// Identyfikator wybranego mikrofonu. Pusty ciąg = domyślny systemowy.
+  ///
+  /// Lokalne, nie synchronizowane: mikrofon podpięty do komputera nie ma
+  /// nic wspólnego z tym, co jest w telefonie, a przeniesienie tego wyboru
+  /// między urządzeniami wskazałoby sprzęt, którego tam nie ma.
+  static const audioInputDeviceId = 'audio_input_device_id';
 }
 
 @DriftAccessor(tables: [LocalSettings, Devices])

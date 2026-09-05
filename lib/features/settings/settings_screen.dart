@@ -61,6 +61,8 @@ class _RecordingCardState extends ConsumerState<_RecordingCard> {
   Widget build(BuildContext context) {
     final quality =
         ref.watch(audioQualityProvider).value ?? AudioQuality.practice;
+    final supported =
+        ref.watch(supportedQualitiesProvider).value ?? AudioQuality.values;
 
     return Card(
       child: Padding(
@@ -89,7 +91,7 @@ class _RecordingCardState extends ConsumerState<_RecordingCard> {
               },
               child: Column(
                 children: [
-                  for (final q in AudioQuality.values)
+                  for (final q in supported)
                     RadioListTile<AudioQuality>(
                       contentPadding: EdgeInsets.zero,
                       value: q,
@@ -105,6 +107,8 @@ class _RecordingCardState extends ConsumerState<_RecordingCard> {
                 ],
               ),
             ),
+            const Divider(height: 24),
+            _MicrophonePicker(),
             const Divider(height: 24),
             Row(
               children: [
@@ -133,6 +137,75 @@ class _RecordingCardState extends ConsumerState<_RecordingCard> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Wybór mikrofonu.
+///
+/// Na komputerze to największa dźwignia jakości ze wszystkich ustawień:
+/// bez niego nagranie leci z mikrofonu w laptopie nawet wtedy, gdy do USB
+/// podpięty jest porządny mikrofon — i żaden bitrate tego nie nadrobi.
+class _MicrophonePicker extends ConsumerWidget {
+  const _MicrophonePicker();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final devices = ref.watch(inputDevicesProvider);
+    final selectedId = ref.watch(audioInputDeviceIdProvider).value ?? '';
+
+    return devices.when(
+      loading: () => const LinearProgressIndicator(),
+      error: (e, _) => Text(
+        'Nie udało się odczytać listy mikrofonów.',
+        style: TextStyle(fontSize: 12, color: VizColors.inkMuted),
+      ),
+      data: (list) {
+        if (list.isEmpty) {
+          return Row(
+            children: [
+              const Icon(Icons.mic_none, size: 18),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'System nie zgłasza osobnych mikrofonów — nagrywanie '
+                  'pójdzie z urządzenia domyślnego.',
+                  style: TextStyle(fontSize: 12, color: VizColors.inkMuted),
+                ),
+              ),
+            ],
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Mikrofon',
+                style: TextStyle(fontSize: 13, color: VizColors.inkMuted)),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              initialValue:
+                  list.any((d) => d.id == selectedId) ? selectedId : '',
+              isExpanded: true,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              items: [
+                const DropdownMenuItem(value: '', child: Text('Domyślny')),
+                for (final d in list)
+                  DropdownMenuItem(
+                    value: d.id,
+                    child: Text(d.label, overflow: TextOverflow.ellipsis),
+                  ),
+              ],
+              onChanged: (v) => ref
+                  .read(settingsDaoProvider)
+                  .set(SettingKeys.audioInputDeviceId, v ?? ''),
+            ),
+          ],
+        );
+      },
     );
   }
 }

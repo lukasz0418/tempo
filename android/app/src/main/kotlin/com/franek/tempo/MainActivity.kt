@@ -1,5 +1,6 @@
 package com.franek.tempo
 
+import android.Manifest
 import android.app.AppOpsManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
@@ -15,6 +16,7 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
+import java.util.Calendar
 
 /**
  * Most do `UsageStatsManager`.
@@ -29,6 +31,7 @@ class MainActivity : FlutterActivity() {
     private companion object {
         const val CHANNEL = "tempo/usage"
         const val INSTALLER_CHANNEL = "tempo/installer"
+        const val REMINDERS_CHANNEL = "tempo/reminders"
 
         /** Przerwa, przy której dwa odcinki tej samej aplikacji zostają sklejone. */
         const val MERGE_GAP_MS = 30_000L
@@ -92,6 +95,74 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+
+        configureReminders(flutterEngine)
+    }
+
+    private fun configureReminders(flutterEngine: FlutterEngine) {
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, REMINDERS_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "hasPermission" -> result.success(hasNotificationPermission())
+
+                    "requestPermission" -> {
+                        requestNotificationPermission()
+                        result.success(hasNotificationPermission())
+                    }
+
+                    "reschedule" -> {
+                        val raw = call.argument<List<Map<String, Any?>>>("reminders")
+                            ?: emptyList()
+                        val reminders = raw.mapNotNull { map ->
+                            val id = map["id"] as? String ?: return@mapNotNull null
+                            val title = map["title"] as? String ?: return@mapNotNull null
+                            val minute = (map["minuteOfDay"] as? Number)?.toInt()
+                                ?: return@mapNotNull null
+
+                            Reminders.Reminder(
+                                id = id,
+                                title = title,
+                                body = map["body"] as? String,
+                                minuteOfDay = minute,
+                                // Dart posługuje się konwencją DateTime
+                                // (poniedziałek = 1), Calendar swoją
+                                // (niedziela = 1) — przeliczamy tutaj,
+                                // żeby po stronie Androida była już
+                                // tylko jedna konwencja.
+                                weekdays = ((map["weekdays"] as? List<*>) ?: emptyList<Any>())
+                                    .mapNotNull { (it as? Number)?.toInt() }
+                                    .map { dartWeekdayToCalendar(it) }
+                            )
+                        }
+                        Reminders.reschedule(this, reminders)
+                        result.success(null)
+                    }
+
+                    "cancelAll" -> {
+                        Reminders.cancelAll(this)
+                        result.success(null)
+                    }
+
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    /** DateTime.monday=1..sunday=7  ->  Calendar.SUNDAY=1..SATURDAY=7 */
+    private fun dartWeekdayToCalendar(dartWeekday: Int): Int =
+        if (dartWeekday == 7) Calendar.SUNDAY else dartWeekday + 1
+
+    private fun hasNotificationPermission(): Boolean {
+        // Przed Androidem 13 powiadomienia nie wymagały zgody.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+        return checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        if (hasNotificationPermission()) return
+        requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1001)
     }
 
     private fun canRequestInstalls(): Boolean {
