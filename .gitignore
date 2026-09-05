@@ -54,3 +54,7 @@ android/key.properties
 *.keystore
 # Paczki wydania (APK + manifest) - generowane przez tools\release.ps1
 /dist/
+
+# Artefakty buildu Gradle - domyslny .gitignore Fluttera ich nie lapie.
+android/build/
+android/app/build/
