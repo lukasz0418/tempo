@@ -7,6 +7,7 @@ import '../../core/db/database.dart';
 import '../../core/db/enums.dart';
 import '../../core/estimation/estimation.dart';
 import '../../core/util/dates.dart';
+import '../common/undo.dart';
 
 class TasksScreen extends ConsumerWidget {
   const TasksScreen({super.key});
@@ -149,7 +150,15 @@ class _TaskTile extends ConsumerWidget {
             ),
           ],
         ),
-        onLongPress: () => ref.read(taskDaoProvider).softDelete(task.id),
+        onLongPress: () async {
+          await ref.read(taskDaoProvider).softDelete(task.id);
+          if (!context.mounted) return;
+          showUndoSnackBar(
+            context,
+            message: 'Usunięto „${task.title}"',
+            onUndo: () => ref.read(taskDaoProvider).restore(task.id),
+          );
+        },
       ),
     );
   }

@@ -195,6 +195,11 @@ class TaskDao extends DatabaseAccessor<AppDatabase> with _$TaskDaoMixin {
         TasksCompanion(id: Value(id), deleted: const Value(true)),
       );
 
+  /// Cofnięcie usunięcia. Działa, bo wiersz nigdy fizycznie nie znika.
+  Future<void> restore(String id) => save(
+        TasksCompanion(id: Value(id), deleted: const Value(false)),
+      );
+
   Future<List<Task>> subtasksOf(String parentId) =>
       (_alive()..where((t) => t.parentId.equals(parentId))).get();
 }

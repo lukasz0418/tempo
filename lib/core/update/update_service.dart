@@ -44,7 +44,14 @@ class UpdateManifest {
 
   static UpdateManifest? tryParse(String body) {
     try {
-      final json = jsonDecode(body) as Map<String, dynamic>;
+      // Zdjęcie BOM-a przed parsowaniem.
+      //
+      // `jsonDecode` wywraca się na znaku U+FEFF przed `{`, a trafia on tam
+      // zaskakująco łatwo: PowerShell 5.1 dopisuje BOM przy `Set-Content
+      // -Encoding utf8`, Notatnik robi to samo, część edytorów też.
+      // Objaw jest wtedy myląco ogólny („manifest ma nieoczekiwany format"),
+      // bo w treści pliku gołym okiem nie widać niczego złego.
+      final json = jsonDecode(_stripBom(body)) as Map<String, dynamic>;
       final code = json['versionCode'];
       final url = json['apkUrl'];
       if (code is! int || url is! String) return null;
@@ -63,6 +70,14 @@ class UpdateManifest {
       return null;
     }
   }
+
+  /// U+FEFF zapisany jawnie, a nie jako niewidzialny znak w źródle —
+  /// literał BOM-a w kodzie jest nie do zauważenia przy przeglądaniu
+  /// i pierwsza osoba, która „posprząta" tę linijkę, zepsuje ją bez śladu.
+  static const _bom = '\u{FEFF}';
+
+  static String _stripBom(String s) =>
+      s.startsWith(_bom) ? s.substring(1) : s;
 }
 
 /// Wynik sprawdzenia aktualizacji.

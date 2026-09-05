@@ -192,10 +192,15 @@ class TimeEntryDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
-  Future<void> softDelete(String id) {
+  Future<void> softDelete(String id) => _setDeleted(id, deleted: true);
+
+  /// Cofnięcie usunięcia. Działa, bo wiersz nigdy fizycznie nie znika.
+  Future<void> restore(String id) => _setDeleted(id, deleted: false);
+
+  Future<void> _setDeleted(String id, {required bool deleted}) {
     return (update(timeEntries)..where((t) => t.id.equals(id))).write(
       TimeEntriesCompanion(
-        deleted: const Value(true),
+        deleted: Value(deleted),
         updatedAt: Value(SyncStamp.now()),
         dirty: const Value(true),
       ),

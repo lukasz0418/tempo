@@ -7,6 +7,7 @@ import '../../app/theme.dart';
 import '../../core/db/database.dart';
 import '../../core/db/enums.dart';
 import '../../core/ideas/idea_export.dart';
+import '../common/undo.dart';
 
 /// Tablica pomysłów: co dodać, co zmienić, co jest zepsute.
 ///
@@ -47,6 +48,8 @@ class IdeasScreen extends ConsumerWidget {
               _ExportBar(ideas: rows),
               const SizedBox(height: 16),
               for (final idea in rows) _IdeaTile(idea: idea),
+              const SizedBox(height: 8),
+              const _TrashLink(),
             ],
           );
         },
@@ -169,7 +172,15 @@ class _IdeaTile extends ConsumerWidget {
               PopupMenuItem(value: s, child: Text(_statusLabel(s))),
           ],
         ),
-        onLongPress: () => ref.read(ideaDaoProvider).softDelete(idea.id),
+        onLongPress: () async {
+          await ref.read(ideaDaoProvider).softDelete(idea.id);
+          if (!context.mounted) return;
+          showUndoSnackBar(
+            context,
+            message: 'Usunięto „${idea.title}"',
+            onUndo: () => ref.read(ideaDaoProvider).restore(idea.id),
+          );
+        },
       ),
     );
   }
@@ -188,6 +199,85 @@ class _IdeaTile extends ConsumerWidget {
         IdeaStatus.done => 'zrobione',
         IdeaStatus.rejected => 'odrzucone',
       };
+}
+
+/// Wejście do kosza. Pokazuje się tylko wtedy, gdy jest co przywracać —
+/// pusty kosz to pozycja, która zajmuje miejsce i niczego nie wnosi.
+class _TrashLink extends ConsumerWidget {
+  const _TrashLink();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final deleted = ref.watch(deletedIdeasProvider).value ?? const <Idea>[];
+    if (deleted.isEmpty) return const SizedBox.shrink();
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const _TrashScreen()),
+        ),
+        icon: const Icon(Icons.delete_outline, size: 18),
+        label: Text('Kosz (${deleted.length})'),
+      ),
+    );
+  }
+}
+
+class _TrashScreen extends ConsumerWidget {
+  const _TrashScreen();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final deleted = ref.watch(deletedIdeasProvider);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Kosz')),
+      body: deleted.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Błąd: $e')),
+        data: (rows) {
+          if (rows.isEmpty) {
+            return Center(
+              child: Text(
+                'Pusto.',
+                style: TextStyle(color: VizColors.inkMuted),
+              ),
+            );
+          }
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Text(
+                'Skasowane pomysły nie znikają z bazy — trzymamy je jako '
+                'znaczniki usunięcia na potrzeby synchronizacji. Dlatego '
+                'da się je odzyskać.',
+                style: TextStyle(fontSize: 12, color: VizColors.inkMuted),
+              ),
+              const SizedBox(height: 16),
+              for (final idea in rows)
+                Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    title: Text(idea.title),
+                    subtitle: idea.body == null || idea.body!.isEmpty
+                        ? null
+                        : Text(idea.body!,
+                            maxLines: 2, overflow: TextOverflow.ellipsis),
+                    trailing: TextButton(
+                      onPressed: () =>
+                          ref.read(ideaDaoProvider).restore(idea.id),
+                      child: const Text('Przywróć'),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 }
 
 class _AddIdeaDialog extends ConsumerStatefulWidget {

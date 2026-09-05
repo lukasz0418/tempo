@@ -121,6 +121,11 @@ final allIdeasProvider = StreamProvider<List<Idea>>((ref) {
   return ref.watch(ideaDaoProvider).watchAll();
 });
 
+/// Skasowane pomysły — możliwe do odzyskania, bo kasowanie jest miękkie.
+final deletedIdeasProvider = StreamProvider<List<Idea>>((ref) {
+  return ref.watch(ideaDaoProvider).watchDeleted();
+});
+
 final rulesProvider = StreamProvider<List<ActivityRule>>((ref) {
   return ref.watch(ruleDaoProvider).watchAll();
 });

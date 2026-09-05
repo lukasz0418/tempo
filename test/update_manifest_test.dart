@@ -76,6 +76,19 @@ void main() {
       expect(UpdateManifest.tryParse('[1, 2, 3]'), isNull);
     });
 
+    test('radzi sobie z BOM na początku pliku', () {
+      // Realny przypadek, na którym to się wyłożyło: PowerShell 5.1
+      // dopisuje BOM przy `Set-Content -Encoding utf8`, Notatnik też.
+      // Znaku nie widać w treści, a jsonDecode odrzucał cały manifest
+      // komunikatem „nieoczekiwany format".
+      final withBom = '\u{FEFF}${manifestJson({})}';
+
+      final m = UpdateManifest.tryParse(withBom);
+
+      expect(m, isNotNull);
+      expect(m!.versionCode, 5);
+    });
+
     test('czyta minSupportedCode', () {
       final m = UpdateManifest.tryParse(manifestJson({'minSupportedCode': 4}));
 

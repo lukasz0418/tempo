@@ -137,7 +137,15 @@ $manifest = [ordered]@{
 }
 
 $manifestPath = Join-Path $dist 'update.json'
-$manifest | ConvertTo-Json -Depth 3 | Set-Content $manifestPath -Encoding utf8
+# UTF-8 BEZ BOM. `Set-Content -Encoding utf8` w PowerShellu 5.1 dopisuje BOM,
+# a wtedy parser JSON w aplikacji widzi przed `{` znak U+FEFF i odrzuca
+# cały manifest komunikatem „nieoczekiwany format". Aplikacja radzi sobie
+# z tym od buildu 4, ale plik i tak nie ma powodu nosić BOM-a.
+[IO.File]::WriteAllText(
+    $manifestPath,
+    ($manifest | ConvertTo-Json -Depth 3),
+    (New-Object Text.UTF8Encoding $false)
+)
 
 Write-Host "`n== Gotowe ==" -ForegroundColor Green
 Write-Host "APK:      $apkTarget ($sizeMb MB, $Abi)"

@@ -83,6 +83,26 @@ class IdeaDao extends DatabaseAccessor<AppDatabase> with _$IdeaDaoMixin {
   Future<void> softDelete(String id) =>
       save(IdeasCompanion(id: Value(id), deleted: const Value(true)));
 
+  /// Przywraca skasowany pomysł.
+  ///
+  /// Możliwe wyłącznie dlatego, że kasowanie jest miękkie — wiersz zostaje
+  /// w bazie jako tombstone na potrzeby synchronizacji. Odzyskiwanie danych
+  /// jest efektem ubocznym tamtej decyzji, ale skoro jest za darmo,
+  /// nie ma powodu, żeby użytkownik nie miał do niego dostępu.
+  Future<void> restore(String id) =>
+      save(IdeasCompanion(id: Value(id), deleted: const Value(false)));
+
+  /// Skasowane pomysły, od najświeższych.
+  Stream<List<Idea>> watchDeleted() {
+    final q = select(ideas)
+      ..where((t) => t.deleted.equals(true))
+      ..orderBy([
+        (t) => OrderingTerm(expression: t.updatedAt, mode: OrderingMode.desc),
+      ])
+      ..limit(100);
+    return q.watch();
+  }
+
   /// Pomysły, które jeszcze nie trafiły do żadnego eksportu.
   Future<List<Idea>> newSinceLastExport() {
     return (_alive()

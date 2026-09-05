@@ -7,6 +7,7 @@ import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../core/db/database.dart';
 import '../../core/util/dates.dart';
+import '../common/undo.dart';
 import '../insights/charts.dart';
 
 /// Ekran „Dziś": stoper, wpisy z dzisiaj i podział czasu.
@@ -239,7 +240,15 @@ class _EntryTile extends ConsumerWidget {
           formatDuration(duration),
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        onLongPress: () => ref.read(timeEntryDaoProvider).softDelete(entry.id),
+        onLongPress: () async {
+          await ref.read(timeEntryDaoProvider).softDelete(entry.id);
+          if (!context.mounted) return;
+          showUndoSnackBar(
+            context,
+            message: 'Usunięto wpis czasu',
+            onUndo: () => ref.read(timeEntryDaoProvider).restore(entry.id),
+          );
+        },
       ),
     );
   }
