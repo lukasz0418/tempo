@@ -56,6 +56,30 @@ https://github.com/UŻYTKOWNIK/REPO/releases/latest/download/update.json
 `latest/download/` zawsze wskazuje na najnowsze wydanie, więc adres wpisujesz
 w telefon raz i nigdy go nie zmieniasz.
 
+> **Repozytorium musi być publiczne.** Pliki dołączone do wydania w repozytorium
+> prywatnym wymagają uwierzytelnienia, a aplikacja pobiera je zwykłym żądaniem
+> GET — dostałaby stronę logowania zamiast pliku APK. Kod jest tu nieszkodliwy
+> (keystore i `key.properties` są w `.gitignore`, dane o twoim czasie siedzą
+> wyłącznie na urządzeniach), więc publiczne repo nic nie ujawnia. Jeśli mimo to
+> wolisz trzymać kod prywatnie — załóż drugie, publiczne repozytorium wyłącznie
+> na wydania i wskaż `-BaseUrl` na nie.
+
+### Rozmiar pliku
+
+Skrypt buduje osobny APK na architekturę (`--split-per-abi`), więc wydanie pod
+`arm64-v8a` waży **~20 MB** zamiast ~58 MB. Przy aktualizacjach ściąganych przez
+dane komórkowe to różnica, którą realnie czuć.
+
+Domyślną architekturą jest `arm64-v8a` — ma ją każdy telefon z ostatnich lat.
+Jeśli twój okazałby się starszy, użyj `-Abi armeabi-v7a`. Architekturę telefonu
+sprawdzisz przez `adb shell getprop ro.product.cpu.abi`.
+
+Podział na architektury ma jedną pułapkę, którą skrypt obsługuje za ciebie:
+Flutter domyślnie dolicza do `versionCode` tysiąc razy indeks architektury, przez
+co telefon zgłaszałby build 2003 zamiast 3 i **nigdy nie zobaczyłby aktualizacji**.
+Dlatego build leci z `-Pforce-version-code-ignoring-abi=true`, a skrypt na koniec
+sprawdza `aapt2`, czy numer w gotowym pliku faktycznie zgadza się z manifestem.
+
 ### 3. Ustawienie w telefonie
 
 *Ustawienia → Aktualizacje* → wklej adres manifestu → **Zapisz adres**.

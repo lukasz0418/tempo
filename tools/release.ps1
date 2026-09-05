@@ -22,6 +22,11 @@
 .PARAMETER Publish
     Wypycha wydanie na GitHub Releases (wymaga zalogowanego `gh`).
 
+.PARAMETER Abi
+    Architektura, pod którą powstaje wydawany plik. Domyślnie `arm64-v8a` —
+    ma ją każdy telefon z ostatnich lat. `armeabi-v7a` tylko dla naprawdę
+    starego sprzętu, `x86_64` dla emulatora.
+
 .EXAMPLE
     .\tools\release.ps1 -Notes "Podsumowanie dnia" -Publish
 #>
@@ -29,6 +34,8 @@
 param(
     [string]$Notes = '',
     [string]$BaseUrl = '',
+    [ValidateSet('arm64-v8a', 'armeabi-v7a', 'x86_64')]
+    [string]$Abi = 'arm64-v8a',
     [switch]$Publish,
     [switch]$SkipBump
 )
@@ -85,17 +92,31 @@ if (-not (Test-Path (Join-Path $repo 'android\key.properties'))) {
 }
 
 Write-Host "`n== Build APK ==" -ForegroundColor Cyan
-flutter build apk --release
+# Budujemy osobny plik na architekturę zamiast jednego uniwersalnego.
+#
+# APK uniwersalny waży ~58 MB, bo niesie biblioteki natywne na wszystkie
+# architektury naraz. Wersja pod samo arm64 to ~23 MB — a przy aktualizacjach
+# ściąganych przez dane komórkowe różnica 35 MB na każde wydanie jest realna.
+#
+# `force-version-code-ignoring-abi` jest tu OBOWIĄZKOWE: bez tej flagi Flutter
+# dolicza do versionCode 1000 × indeks architektury, więc telefon zgłaszałby
+# build 1002 zamiast 2 i uznawałby, że jest nowszy niż manifest — aktualizacje
+# przestałyby się w ogóle pokazywać.
+flutter build apk --release --split-per-abi -Pforce-version-code-ignoring-abi=true
 if ($LASTEXITCODE -ne 0) { throw 'Build APK nie powiódł się.' }
 
-$apkSource = Join-Path $repo 'build\app\outputs\flutter-apk\app-release.apk'
-if (-not (Test-Path $apkSource)) { throw "Nie znaleziono zbudowanego APK: $apkSource" }
+$apkSource = Join-Path $repo "build\app\outputs\flutter-apk\app-$Abi-release.apk"
+if (-not (Test-Path $apkSource)) {
+    $available = (Get-ChildItem (Join-Path $repo 'build\app\outputs\flutter-apk') -Filter '*.apk' |
+        ForEach-Object { $_.Name }) -join ', '
+    throw "Nie znaleziono APK dla architektury '$Abi'. Dostępne: $available"
+}
 
 # --- paczka wydania ---------------------------------------------------------
 $dist = Join-Path $repo 'dist'
 New-Item -ItemType Directory -Force -Path $dist | Out-Null
 
-$apkName = "tempo-$buildNumber.apk"
+$apkName = "tempo-$buildNumber-$Abi.apk"
 $apkTarget = Join-Path $dist $apkName
 Copy-Item $apkSource $apkTarget -Force
 
@@ -119,9 +140,22 @@ $manifestPath = Join-Path $dist 'update.json'
 $manifest | ConvertTo-Json -Depth 3 | Set-Content $manifestPath -Encoding utf8
 
 Write-Host "`n== Gotowe ==" -ForegroundColor Green
-Write-Host "APK:      $apkTarget ($sizeMb MB)"
+Write-Host "APK:      $apkTarget ($sizeMb MB, $Abi)"
 Write-Host "Manifest: $manifestPath"
 Write-Host "SHA-256:  $hash"
+
+# Kontrola, że versionCode w gotowym pliku zgadza się z manifestem.
+# Rozjazd tutaj jest cichy i objawia się dopiero tym, że telefon
+# nigdy nie widzi aktualizacji — lepiej złapać go na PC.
+$aapt = Get-ChildItem "$env:LOCALAPPDATA\Android\Sdk\build-tools" -Filter 'aapt2.exe' -Recurse -ErrorAction SilentlyContinue |
+    Sort-Object FullName -Descending | Select-Object -First 1
+if ($aapt) {
+    $badging = & $aapt.FullName dump badging $apkTarget 2>$null | Select-String -Pattern "versionCode='(\d+)'"
+    if ($badging -and $badging.Matches[0].Groups[1].Value -ne "$buildNumber") {
+        throw "versionCode w APK ($($badging.Matches[0].Groups[1].Value)) nie zgadza się z manifestem ($buildNumber). Telefon nie zobaczyłby tej aktualizacji."
+    }
+    Write-Host "versionCode w APK zgodny z manifestem: $buildNumber" -ForegroundColor Green
+}
 
 # --- publikacja -------------------------------------------------------------
 if ($Publish) {
