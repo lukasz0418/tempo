@@ -103,6 +103,55 @@ enum MatchType { equals, contains, startsWith, regex }
 /// (`chrome.exe` kontra `com.android.chrome`).
 enum DevicePlatform { windows, android, unknown }
 
+/// Jakość nagrań głosowych.
+///
+/// Trzy ustawienia zamiast jednej stałej, bo notatka „pamiętać o kciuku"
+/// i nagranie zwrotki mają zupełnie inne wymagania. Dobór wartości wynika
+/// z tego, co słychać, a nie z tego, co ładnie wygląda w tabelce:
+/// 64 kbps wystarcza dla mowy, ale na śpiewie słychać już artefakty
+/// na wybrzmieniach — czyli dokładnie tam, gdzie chcesz usłyszeć postęp.
+enum AudioQuality {
+  /// 64 kbps mono — notatka mówiona. ~0,5 MB na minutę.
+  note,
+
+  /// 128 kbps mono — ćwiczenie. Domyślne. ~1 MB na minutę.
+  ///
+  /// Przy nagraniu własnego głosu mikrofonem telefonu to próg, powyżej
+  /// którego kodek przestaje być wąskim gardłem — dalsze podnoszenie
+  /// bitrate'u poprawia już tylko to, czego mikrofon i tak nie zarejestrował.
+  practice,
+
+  /// 192 kbps stereo — gdy nagrywasz instrument albo pomieszczenie.
+  /// ~1,4 MB na minutę.
+  high;
+
+  int get bitRate => switch (this) {
+        AudioQuality.note => 64000,
+        AudioQuality.practice => 128000,
+        AudioQuality.high => 192000,
+      };
+
+  int get channels => this == AudioQuality.high ? 2 : 1;
+
+  String get label => switch (this) {
+        AudioQuality.note => 'Notatka głosowa',
+        AudioQuality.practice => 'Ćwiczenie',
+        AudioQuality.high => 'Wysoka',
+      };
+
+  String get description => switch (this) {
+        AudioQuality.note => '64 kbps mono — do mówionych notatek',
+        AudioQuality.practice => '128 kbps mono — do śpiewu i gry',
+        AudioQuality.high => '192 kbps stereo — instrument, pomieszczenie',
+      };
+
+  /// Przybliżony rozmiar minuty nagrania.
+  String get sizePerMinute {
+    final bytes = bitRate * 60 / 8;
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB/min';
+  }
+}
+
 /// Horyzont celu.
 ///
 /// Rozdzielenie na dwa poziomy jest tu istotne, a nie kosmetyczne: cel

@@ -310,9 +310,25 @@ final mediaStoreProvider = FutureProvider<MediaStore>((ref) {
   return MediaStore.instance();
 });
 
+/// Jakość nagrań głosowych, obserwowana z ustawień.
+final audioQualityProvider = StreamProvider<AudioQuality>((ref) {
+  return ref
+      .watch(settingsDaoProvider)
+      .watch(SettingKeys.audioQuality)
+      .map((raw) => AudioQuality.values.firstWhere(
+            (q) => q.name == raw,
+            // Domyślnie „Ćwiczenie", nie najniższa jakość: nagranie śpiewu
+            // w 64 kbps traci dokładnie te szczegóły, po których słychać
+            // postęp, a oszczędność miejsca jest przy dzisiejszych
+            // telefonach bez znaczenia.
+            orElse: () => AudioQuality.practice,
+          ));
+});
+
 final mediaCaptureProvider = FutureProvider<MediaCapture>((ref) async {
   final store = await ref.watch(mediaStoreProvider.future);
-  final capture = MediaCapture(store);
+  final capture = MediaCapture(store)
+    ..quality = ref.watch(audioQualityProvider).value ?? AudioQuality.practice;
   ref.onDispose(capture.dispose);
   return capture;
 });

@@ -33,19 +33,22 @@ class MediaCapture {
   final ImagePicker _picker = ImagePicker();
   AudioRecorder? _recorder;
 
-  /// Parametry nagrania głosowego.
+  /// Jakość kolejnych nagrań. Ustawiana z ekranu ustawień.
+  AudioQuality quality = AudioQuality.practice;
+
+  /// Parametry nagrania dla bieżącej jakości.
   ///
-  /// AAC 64 kbps mono to świadomy kompromis: trzy minuty ważą ~1,5 MB,
-  /// więc dwieście sesji zmieści się w darmowym limicie magazynu zdalnego,
-  /// a jakość spokojnie wystarcza, żeby po pół roku usłyszeć różnicę
-  /// w tym, jak śpiewasz. Stereo przy nagrywaniu własnego głosu
-  /// podwoiłoby rozmiar bez żadnego zysku.
-  static const _audioConfig = RecordConfig(
-    encoder: AudioEncoder.aacLc,
-    bitRate: 64000,
-    sampleRate: 44100,
-    numChannels: 1,
-  );
+  /// Częstotliwość próbkowania zostaje 44,1 kHz niezależnie od ustawienia:
+  /// jej obniżenie obcina górę pasma, czyli szum oddechu i wybrzmienia
+  /// strun — akurat to, po czym słychać różnicę między nagraniem sprzed
+  /// pół roku a dzisiejszym. Oszczędność miejsca idzie przez bitrate,
+  /// nie przez pasmo.
+  RecordConfig get _audioConfig => RecordConfig(
+        encoder: AudioEncoder.aacLc,
+        bitRate: quality.bitRate,
+        sampleRate: 44100,
+        numChannels: quality.channels,
+      );
 
   bool get isRecording => _recorder != null;
 

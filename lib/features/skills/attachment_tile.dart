@@ -7,6 +7,7 @@ import '../../app/theme.dart';
 import '../../core/db/database.dart';
 import '../../core/db/enums.dart';
 import '../../core/media/media_store.dart';
+import 'video_tile.dart';
 
 /// Jeden załącznik na stronie dziennika.
 class AttachmentTile extends StatelessWidget {
@@ -35,6 +36,11 @@ class AttachmentTile extends StatelessWidget {
         _AudioTile(attachment: attachment, file: file, onDelete: onDelete),
       AttachmentKind.photo =>
         _PhotoTile(attachment: attachment, file: file, onDelete: onDelete),
+      // Odtwarzanie wideo tylko tam, gdzie wtyczka ma implementację.
+      // Na Windowsie zostaje kafelek z informacją o pliku — lepszy
+      // niż czarny prostokąt, który wyglądałby na zepsuty odtwarzacz.
+      AttachmentKind.video when Platform.isAndroid =>
+        VideoTile(attachment: attachment, file: file, onDelete: onDelete),
       AttachmentKind.video || AttachmentKind.file =>
         _FileTile(attachment: attachment, file: file, onDelete: onDelete),
     };

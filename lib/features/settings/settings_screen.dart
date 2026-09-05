@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../core/db/daos/settings_dao.dart';
+import '../../core/db/enums.dart';
+import '../../core/media/media_store.dart';
 import '../../core/tracking/android_usage.dart';
 import '../../core/update/update_service.dart';
 import '../reminders/reminders_screen.dart';
@@ -18,6 +20,8 @@ class SettingsScreen extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: const [
+        _RecordingCard(),
+        SizedBox(height: 16),
         _RemindersCard(),
         SizedBox(height: 16),
         _UpdateCard(),
@@ -26,6 +30,109 @@ class SettingsScreen extends ConsumerWidget {
         SizedBox(height: 16),
         _AboutCard(),
       ],
+    );
+  }
+}
+
+/// Jakość nagrań i zajętość magazynu mediów.
+class _RecordingCard extends ConsumerStatefulWidget {
+  const _RecordingCard();
+
+  @override
+  ConsumerState<_RecordingCard> createState() => _RecordingCardState();
+}
+
+class _RecordingCardState extends ConsumerState<_RecordingCard> {
+  int? _storageBytes;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStorage();
+  }
+
+  Future<void> _loadStorage() async {
+    final store = await ref.read(mediaStoreProvider.future);
+    final bytes = await store.totalBytes();
+    if (mounted) setState(() => _storageBytes = bytes);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final quality =
+        ref.watch(audioQualityProvider).value ?? AudioQuality.practice;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Nagrania', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(
+              'Wyższy bitrate ma sens przy śpiewie i grze — na mowie '
+              'różnicy nie usłyszysz.',
+              style: TextStyle(fontSize: 12, color: VizColors.inkMuted),
+            ),
+            const SizedBox(height: 12),
+            // Wybór grupy przez `RadioGroup`, a nie przez `groupValue`
+            // na każdym kafelku — od Fluttera 3.32 ta druga droga
+            // jest wycofana.
+            RadioGroup<AudioQuality>(
+              groupValue: quality,
+              onChanged: (v) {
+                if (v == null) return;
+                ref
+                    .read(settingsDaoProvider)
+                    .set(SettingKeys.audioQuality, v.name);
+              },
+              child: Column(
+                children: [
+                  for (final q in AudioQuality.values)
+                    RadioListTile<AudioQuality>(
+                      contentPadding: EdgeInsets.zero,
+                      value: q,
+                      title: Text(q.label),
+                      subtitle: Text(
+                        '${q.description}  ·  ${q.sizePerMinute}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: VizColors.inkMuted,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const Divider(height: 24),
+            Row(
+              children: [
+                const Icon(Icons.folder_outlined, size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _storageBytes == null
+                        ? 'Liczę zajętość…'
+                        : 'Media zajmują ${formatBytes(_storageBytes!)}',
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Przelicz',
+                  icon: const Icon(Icons.refresh),
+                  onPressed: _loadStorage,
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Nagrania i zdjęcia leżą w katalogu aplikacji. Odinstalowanie '
+              'Tempo skasuje je razem z nią — zrób kopię, zanim to zrobisz.',
+              style: TextStyle(fontSize: 11, color: VizColors.inkMuted),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

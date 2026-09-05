@@ -225,12 +225,48 @@ class _JournalEntryScreenState extends ConsumerState<JournalEntryScreen> {
           icon: const Icon(Icons.photo_library, size: 18),
           label: const Text('Z galerii'),
         ),
+        // Wideo daje wybór źródła: film bywa nagrywany na miejscu, ale
+        // równie często jest już w galerii — wymuszanie kamery odcinałoby
+        // ten drugi przypadek.
         OutlinedButton.icon(
-          onPressed: () => _capture((c) => c.recordVideo()),
+          onPressed: _pickVideoSource,
           icon: const Icon(Icons.videocam, size: 18),
           label: const Text('Wideo'),
         ),
       ],
+    );
+  }
+
+  /// Dolny arkusz zamiast menu podręcznego: na telefonie ma większe cele
+  /// dotykowe i nie wymaga celowania w małą listę przy krawędzi ekranu.
+  Future<void> _pickVideoSource() async {
+    final source = await showModalBottomSheet<_VideoSource>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.videocam),
+              title: const Text('Nagraj wideo'),
+              onTap: () => Navigator.pop(context, _VideoSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.video_library),
+              title: const Text('Wybierz z galerii'),
+              onTap: () => Navigator.pop(context, _VideoSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+
+    await _capture(
+      (c) => switch (source) {
+        _VideoSource.camera => c.recordVideo(),
+        _VideoSource.gallery => c.pickVideo(),
+      },
     );
   }
 
@@ -278,6 +314,8 @@ class _JournalEntryScreenState extends ConsumerState<JournalEntryScreen> {
     }
   }
 }
+
+enum _VideoSource { camera, gallery }
 
 /// Przycisk nagrywania z licznikiem czasu.
 class _RecordButton extends ConsumerStatefulWidget {

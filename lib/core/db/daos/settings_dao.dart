@@ -22,6 +22,9 @@ abstract final class SettingKeys {
   /// GitHub Releases, własny serwer albo tunel do PC działają tak samo.
   static const updateManifestUrl = 'update_manifest_url';
   static const lastUpdateCheckAt = 'last_update_check_at';
+
+  /// Jakość nagrań głosowych, jako nazwa wartości [AudioQuality].
+  static const audioQuality = 'audio_quality';
 }
 
 @DriftAccessor(tables: [LocalSettings, Devices])
