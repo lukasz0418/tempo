@@ -44,6 +44,38 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 Set-Location $repo
 
+<#
+.SYNOPSIS
+    Uruchamia natywny program i sprawdza jego kod wyjścia.
+
+.DESCRIPTION
+    Przy `$ErrorActionPreference = 'Stop'` PowerShell 5.1 zamienia KAŻDĄ linię
+    wypisaną przez natywny program na stderr w błąd terminujący — nawet gdy
+    program zakończył się kodem 0. Flutter rutynowo wypisuje tam ostrzeżenia
+    (np. o wtyczkach używających Kotlin Gradle Plugin), przez co całe wydanie
+    przerywało się na komunikacie, który niczego nie psuł.
+
+    Dlatego na czas wywołania przełączamy preferencję na `Continue`, a o
+    powodzeniu decyduje wyłącznie `$LASTEXITCODE` — czyli to, co program
+    faktycznie zgłasza.
+#>
+function Invoke-Native {
+    param(
+        [Parameter(Mandatory)][scriptblock]$Command,
+        [Parameter(Mandatory)][string]$FailureMessage
+    )
+
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & $Command
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+
+    if ($LASTEXITCODE -ne 0) { throw $FailureMessage }
+}
+
 # --- środowisko -------------------------------------------------------------
 $envScript = 'D:\dev\env.ps1'
 if (Test-Path $envScript) { . $envScript }
@@ -79,12 +111,10 @@ if (-not $SkipBump) {
 # Wydanie, które nie przechodzi analizy i testów, nie ma prawa trafić
 # na telefon — na telefonie nie ma jak go szybko cofnąć.
 Write-Host "`n== Analiza ==" -ForegroundColor Cyan
-flutter analyze
-if ($LASTEXITCODE -ne 0) { throw 'flutter analyze zgłosił błędy — przerywam.' }
+Invoke-Native { flutter analyze } 'flutter analyze zgłosił błędy — przerywam.'
 
 Write-Host "`n== Testy ==" -ForegroundColor Cyan
-flutter test
-if ($LASTEXITCODE -ne 0) { throw 'Testy nie przeszły — przerywam.' }
+Invoke-Native { flutter test } 'Testy nie przeszły — przerywam.'
 
 # --- build ------------------------------------------------------------------
 if (-not (Test-Path (Join-Path $repo 'android\key.properties'))) {
@@ -102,8 +132,9 @@ Write-Host "`n== Build APK ==" -ForegroundColor Cyan
 # dolicza do versionCode 1000 × indeks architektury, więc telefon zgłaszałby
 # build 1002 zamiast 2 i uznawałby, że jest nowszy niż manifest — aktualizacje
 # przestałyby się w ogóle pokazywać.
-flutter build apk --release --split-per-abi -Pforce-version-code-ignoring-abi=true
-if ($LASTEXITCODE -ne 0) { throw 'Build APK nie powiódł się.' }
+Invoke-Native {
+    flutter build apk --release --split-per-abi -Pforce-version-code-ignoring-abi=true
+} 'Build APK nie powiódł się.'
 
 $apkSource = Join-Path $repo "build\app\outputs\flutter-apk\app-$Abi-release.apk"
 if (-not (Test-Path $apkSource)) {
@@ -176,10 +207,19 @@ if ($Publish) {
 
     # `--clobber` pozwala nadpisać pliki, jeśli wydanie o tym tagu już istnieje —
     # bez tego ponowna próba po nieudanym wysłaniu kończy się błędem.
-    gh release create $tag $apkTarget $manifestPath --title $tag --notes $Notes 2>$null
-    if ($LASTEXITCODE -ne 0) {
-        gh release upload $tag $apkTarget $manifestPath --clobber
-        if ($LASTEXITCODE -ne 0) { throw 'Publikacja na GitHub nie powiodła się.' }
+    # Pierwsza próba może się nie udać, bo wydanie o tym tagu już istnieje —
+    # wtedy tylko podmieniamy pliki. Dlatego tu świadomie NIE używamy
+    # Invoke-Native: niepowodzenie jest oczekiwane i obsłużone.
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        gh release create $tag $apkTarget $manifestPath --title $tag --notes $Notes
+        if ($LASTEXITCODE -ne 0) {
+            gh release upload $tag $apkTarget $manifestPath --clobber
+            if ($LASTEXITCODE -ne 0) { throw 'Publikacja na GitHub nie powiodła się.' }
+        }
+    } finally {
+        $ErrorActionPreference = $previous
     }
 
     Write-Host "Opublikowano. Telefon zobaczy aktualizację przy najbliższym sprawdzeniu." -ForegroundColor Green

@@ -3,7 +3,7 @@
 Prywatna aplikacja do zarządzania czasem i zadaniami — Android i Windows,
 jeden kod źródłowy.
 
-Trzy rzeczy odróżniają ją od zwykłej listy zadań ze stoperem:
+Cztery rzeczy odróżniają ją od zwykłej listy zadań ze stoperem:
 
 1. **Uczy się, jak szacujesz.** Każde zadanie ma estymatę w postaci zakresu.
    Po kilkudziesięciu zamkniętych zadaniach aplikacja liczy twój
@@ -13,6 +13,75 @@ Trzy rzeczy odróżniają ją od zwykłej listy zadań ze stoperem:
    odpoczynek / rozpraszacz. Niezależnie od tego, czy pamiętałeś włączyć stoper.
 3. **Rozlicza dzień.** Wieczorne podsumowanie wypisuje konkretnie, co poszło
    dobrze, a co nie — z liczb, nie z samopoczucia.
+4. **Prowadzi dziennik rozwoju.** Umiejętności (dowolne — śpiew, gitara,
+   kalistenika) z wpisami po każdej sesji: notatka w Markdownie, nagranie
+   głosu, zdjęcia. Do tego cele, których postęp liczy się sam.
+
+## Dziennik umiejętności
+
+Umiejętności definiujesz sam. Sesja ćwiczeń to zwykły wpis czasu z przypisaną
+umiejętnością, więc godziny liczą się z tego samego pomiaru, co reszta
+aplikacji — bez osobnego stopera.
+
+Postęp pokazywany jest **trzema liczbami obok siebie**, bo każda z osobna
+kłamie: same godziny nie mówią nic o jakości pracy, sama regularność nie mówi
+o jej głębokości, a sama samoocena bywa nastrojem.
+
+| Liczba | Skąd |
+|---|---|
+| Łączny czas | suma wpisów czasu z tą umiejętnością |
+| Regularność | ile z ostatnich 30 dni miało sesję albo wpis |
+| Trend samooceny | ocena 1–5 wystawiana po sesji, na wykresie w czasie |
+
+### Media — kopiowane, nie wskazywane
+
+Pliki lądują w katalogu aplikacji (`Android/data/com.franek.tempo/files/media`),
+a nie jako odnośnik do galerii. Referencja byłaby tańsza, ale przy dzienniku
+prowadzonym latami skasowanie zdjęcia w galerii to kwestia „kiedy", nie „czy" —
+a wtedy wpis sprzed roku zostaje z martwym odnośnikiem.
+
+- **nagrania głosowe** — AAC 64 kbps mono, ~1,5 MB na trzy minuty. Przy nauce
+  śpiewu czy gry to jedyny artefakt, który po pół roku pokaże różnicę
+- **zdjęcia** — zmniejszane do 2048 px przy imporcie, ~500 KB zamiast 4 MB
+- **wideo** — kopiowane bez przekodowywania: transkodowanie na telefonie trwa
+  minutami i psuje nagranie, które właśnie chciałeś zachować
+
+Nazwa pliku pochodzi z sumy kontrolnej zawartości, więc to samo zdjęcie
+dołączone do dwóch wpisów nie zajmuje miejsca dwa razy.
+
+> Odinstalowanie aplikacji kasuje ten katalog. Przed synchronizacją mediów
+> w chmurze chroni przed tym tylko ręczna kopia.
+
+### Cele
+
+Krótkoterminowe i długoterminowe, przy czym długoterminowy da się rozbić
+na krótkoterminowe (`parent_goal_id`). **Cztery z sześciu metryk liczą się
+same** z danych, które aplikacja i tak zbiera:
+
+| Metryka | Liczona |
+|---|---|
+| Przećwiczony czas | automatycznie |
+| Liczba sesji | automatycznie |
+| Dni z rzędu | automatycznie |
+| Dni ćwiczeń | automatycznie |
+| Osiągnięcie | ręcznie, zero-jedynkowo |
+| Własny licznik | ręcznie |
+
+To nie jest wygoda, tylko warunek działania: cel wymagający codziennego
+odhaczania umiera po dwóch tygodniach, a taki, który wypełnia się w tle,
+przeżywa cały rok. Postęp liczony jest od **założenia celu**, nie od zawsze —
+inaczej „przećwiczyć 50 godzin" byłoby spełnione w chwili utworzenia.
+
+### Przypomnienia
+
+Powiadomienia systemowe o stałej porze, opcjonalnie w wybrane dni tygodnia.
+Używają alarmów nieprecyzyjnych, żeby nie wymagać uprawnienia
+`SCHEDULE_EXACT_ALARM` — przy przypomnieniu o ćwiczeniu kilka minut różnicy
+nie ma znaczenia.
+
+Android kasuje wszystkie zaplanowane alarmy przy restarcie telefonu i przy
+aktualizacji aplikacji, więc źródłem prawdy jest tabela `reminders`, a alarmy
+odtwarzane są przy każdym starcie.
 
 ## Uruchomienie
 
