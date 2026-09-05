@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Katalogi, z których FileProvider może udostępniać pliki innym aplikacjom.
+
+  Udostępniamy wyłącznie katalog cache — tam ląduje pobrany APK. Celowo
+  nie ma tu wpisu na cały magazyn zewnętrzny: FileProvider ma otworzyć
+  dokładnie jedną furtkę, a nie wystawić instalatorowi wszystkiego,
+  do czego aplikacja ma dostęp.
+-->
+<paths>
+    <cache-path
+        name="updates"
+        path="." />
+</paths>
