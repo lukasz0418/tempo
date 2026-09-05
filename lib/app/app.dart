@@ -26,9 +26,17 @@ class TempoApp extends StatelessWidget {
 }
 
 class _Destination {
-  const _Destination(this.label, this.icon, this.builder);
+  const _Destination(this.label, this.icon, this.builder, {String? navLabel})
+      : navLabel = navLabel ?? label;
 
+  /// Pełna nazwa, pokazywana w pasku tytułu.
   final String label;
+
+  /// Nazwa w nawigacji. Bywa krótsza, bo pasek na dole telefonu dzieli
+  /// szerokość na pięć — „Podsumowanie" łamie się tam na dwie linie
+  /// i rozpycha cały pasek.
+  final String navLabel;
+
   final IconData icon;
   final WidgetBuilder builder;
 }
@@ -37,7 +45,12 @@ final _destinations = <_Destination>[
   _Destination('Dziś', Icons.today, (_) => const TodayScreen()),
   _Destination('Zadania', Icons.check_circle_outline, (_) => const TasksScreen()),
   _Destination('Statystyki', Icons.bar_chart, (_) => const InsightsScreen()),
-  _Destination('Podsumowanie', Icons.nightlight_outlined, (_) => const ReviewScreen()),
+  _Destination(
+    'Podsumowanie dnia',
+    Icons.nightlight_outlined,
+    (_) => const ReviewScreen(),
+    navLabel: 'Bilans',
+  ),
   _Destination('Pomysły', Icons.lightbulb_outline, (_) => const IdeasScreen()),
 ];
 
@@ -117,7 +130,8 @@ class _ShellState extends ConsumerState<_Shell> with WidgetsBindingObserver {
                   onDestinationSelected: (i) => setState(() => _index = i),
                   destinations: [
                     for (final d in _destinations)
-                      NavigationDestination(icon: Icon(d.icon), label: d.label),
+                      NavigationDestination(
+                          icon: Icon(d.icon), label: d.navLabel),
                   ],
                 ),
         );
@@ -135,6 +149,7 @@ class _ShellState extends ConsumerState<_Shell> with WidgetsBindingObserver {
                   for (final d in _destinations)
                     NavigationRailDestination(
                       icon: Icon(d.icon),
+                      // W szynie bocznej jest miejsce na pełną nazwę.
                       label: Text(d.label),
                     ),
                 ],
