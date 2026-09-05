@@ -44,6 +44,13 @@ String formatDuration(Duration d) {
   return '$h h $m';
 }
 
+/// Jak [formatDuration], ale zero pokazuje jako kreskę.
+///
+/// W kolumnie statystyk „0 s" wygląda na wynik pomiaru, którego nie było —
+/// kreska mówi wprost „brak danych" i zgadza się z resztą pustych pól.
+String formatDurationOrDash(Duration d) =>
+    d.inSeconds == 0 ? '—' : formatDuration(d);
+
 /// Wersja dla zakresu estymaty: `30–60 min`.
 String formatEstimate(Duration? min, Duration? max) {
   if (min == null && max == null) return '—';

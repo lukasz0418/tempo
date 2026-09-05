@@ -22,6 +22,11 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // Wymagane przez flutter_local_notifications: biblioteka używa
+        // java.time, którego nie ma w starszych Androidach. Desugaring
+        // dokłada te klasy do pliku APK zamiast podnosić minSdk
+        // i odcinać starsze telefony.
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -72,6 +77,9 @@ android {
 dependencies {
     // FileProvider — potrzebny do przekazania pobranego APK instalatorowi.
     implementation("androidx.core:core-ktx:1.13.1")
+
+    // Zaplecze desugaringu włączonego w compileOptions powyżej.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
 kotlin {

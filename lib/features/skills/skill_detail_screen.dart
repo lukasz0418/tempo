@@ -124,7 +124,7 @@ class _ProgressCard extends ConsumerWidget {
               Row(
                 children: [
                   _Metric(
-                      label: 'Łącznie', value: formatDuration(p.total)),
+                      label: 'Łącznie', value: formatDurationOrDash(p.total)),
                   _Metric(
                       label: 'Sesje', value: '${p.sessionCount}'),
                   _Metric(

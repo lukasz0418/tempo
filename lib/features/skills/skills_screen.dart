@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme.dart';
+import '../../core/db/daos/skill_dao.dart';
 import '../../core/db/database.dart';
 import '../../core/util/dates.dart';
 import '../common/undo.dart';
@@ -174,29 +175,30 @@ class _StreakChip extends StatelessWidget {
 class _ProgressRow extends StatelessWidget {
   const _ProgressRow({required this.progress, required this.color});
 
-  final dynamic progress;
+  final SkillProgress progress;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
-    final p = progress;
+    final average = progress.averageRating;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            _Stat(label: 'Łącznie', value: formatDuration(p.total)),
-            _Stat(label: '30 dni', value: formatDuration(p.last30Days)),
+            _Stat(label: 'Łącznie', value: formatDurationOrDash(progress.total)),
+            _Stat(
+              label: '30 dni',
+              value: formatDurationOrDash(progress.last30Days),
+            ),
             _Stat(
               label: 'Dni ćwiczone',
-              value: '${p.daysPracticedLast30}/30',
+              value: '${progress.daysPracticedLast30}/30',
             ),
             _Stat(
               label: 'Samoocena',
-              value: p.averageRating == null
-                  ? '—'
-                  : (p.averageRating as double).toStringAsFixed(1),
+              value: average == null ? '—' : average.toStringAsFixed(1),
             ),
           ],
         ),
@@ -206,7 +208,7 @@ class _ProgressRow extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
-            value: (p.consistency as double).clamp(0.0, 1.0),
+            value: progress.consistency.clamp(0.0, 1.0),
             minHeight: 6,
             backgroundColor: VizColors.grid(Theme.of(context).brightness),
             valueColor: AlwaysStoppedAnimation(color),
